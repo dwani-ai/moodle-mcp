@@ -1,6 +1,6 @@
 # Moodle Setup
 
-After `docker compose up -d`, finish the Moodle setup in the browser at the Moodle hostname.
+After `docker compose -f services/moodle/docker-compose.yml up -d`, finish the Moodle setup in the browser at the Moodle hostname.
 
 ## Required Moodle Web Services Steps
 
@@ -14,11 +14,13 @@ After `docker compose up -d`, finish the Moodle setup in the browser at the Mood
    - `core_course_get_categories`
    - `core_course_create_courses`
    - `core_course_get_contents`
+   - `core_completion_get_activities_completion_status`
    - `core_enrol_get_users_courses`
    - `core_user_get_users_by_field`
+   - `mod_page_add_instance`
    - `mod_url_add_instance`
 7. Create a token for the external service.
-8. Put the token in `.env` as `MOODLE_TOKEN`.
+8. Put the token in `services/mcp/.env` as `MOODLE_TOKEN`. For local all-in-one development, also put it in the root `.env`.
 
 ## Roles
 

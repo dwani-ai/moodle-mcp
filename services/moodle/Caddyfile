@@ -1,0 +1,11 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$MOODLE_SITE_ADDRESS} {
+	reverse_proxy moodle:80
+}
+
+http://localhost {
+	reverse_proxy moodle:80
+}

@@ -28,7 +28,11 @@ dev = [
 ]
 adk = [
   "google-adk>=0.1",
+  "litellm>=1.0",
 ]
+
+[project.scripts]
+moodle-mcp-server = "moodle_mcp.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

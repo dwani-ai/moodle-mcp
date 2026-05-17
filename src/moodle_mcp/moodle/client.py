@@ -12,8 +12,10 @@ class MoodleUser(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     userid: int
+    id: int | None = None
     username: str | None = None
     fullname: str | None = None
+    email: str | None = None
     siteurl: str | None = None
 
 
@@ -89,6 +91,12 @@ class MoodleClient:
         data = await self.call("core_webservice_get_site_info")
         return MoodleUser.model_validate(data)
 
+    async def get_users_by_field(self, *, field: str, values: list[str]) -> list[MoodleUser]:
+        payload = {"field": field}
+        payload.update({f"values[{index}]": value for index, value in enumerate(values)})
+        data = await self.call("core_user_get_users_by_field", **payload)
+        return [MoodleUser.model_validate(item) for item in data]
+
     async def get_course_categories(self) -> list[CourseCategory]:
         data = await self.call("core_course_get_categories")
         return [CourseCategory.model_validate(item) for item in data]
@@ -135,6 +143,26 @@ class MoodleClient:
             introformat=1,
         )
 
+    async def add_page_resource(
+        self,
+        *,
+        courseid: int,
+        section: int,
+        name: str,
+        content: str,
+        intro: str = "",
+    ) -> dict[str, Any]:
+        return await self.call(
+            "mod_page_add_instance",
+            course=courseid,
+            section=section,
+            name=name,
+            intro=intro,
+            introformat=1,
+            content=content,
+            contentformat=1,
+        )
+
     async def get_user_courses(self, userid: int) -> list[CourseSummary]:
         data = await self.call("core_enrol_get_users_courses", userid=userid)
         return [CourseSummary.model_validate(item) for item in data]
@@ -143,4 +171,14 @@ class MoodleClient:
         data = await self.call("core_course_get_contents", courseid=courseid)
         if not isinstance(data, list):
             raise MoodleError("Unexpected course content response from Moodle.")
+        return data
+
+    async def get_activities_completion_status(self, *, courseid: int, userid: int) -> dict[str, Any]:
+        data = await self.call(
+            "core_completion_get_activities_completion_status",
+            courseid=courseid,
+            userid=userid,
+        )
+        if not isinstance(data, dict):
+            raise MoodleError("Unexpected completion status response from Moodle.")
         return data

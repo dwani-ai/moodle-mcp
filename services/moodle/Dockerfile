@@ -27,8 +27,8 @@ RUN curl -fsSL "$MOODLE_DOWNLOAD_URL" -o /tmp/moodle.tgz \
     && rm /tmp/moodle.tgz \
     && chown -R www-data:www-data /var/www/html
 
-COPY deploy/moodle/php.ini /usr/local/etc/php/conf.d/moodle.ini
-COPY deploy/moodle/entrypoint.sh /usr/local/bin/moodle-entrypoint
+COPY services/moodle/php.ini /usr/local/etc/php/conf.d/moodle.ini
+COPY services/moodle/entrypoint.sh /usr/local/bin/moodle-entrypoint
 
 RUN chmod +x /usr/local/bin/moodle-entrypoint
 
