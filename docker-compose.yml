@@ -113,11 +113,16 @@ services:
       - path: .env
         required: false
     environment:
+      APP_ENV: ${APP_ENV:-local}
       MOODLE_BASE_URL: ${MOODLE_BASE_URL:-http://moodle}
       MOODLE_TOKEN: ${MOODLE_TOKEN:-}
       MOODLE_REST_FORMAT: ${MOODLE_REST_FORMAT:-json}
       MCP_SERVER_URL: ${MCP_SERVER_URL:-http://mcp:8000/mcp}
       MCP_CLIENT_TRANSPORT: ${MCP_CLIENT_TRANSPORT:-streamable-http}
+      LITELLM_BASE_URL: ${LITELLM_BASE_URL:-${LLM_BASE_URL:-https://api.openai.com/v1}}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-${LLM_API_KEY:-}}
+      LITELLM_PROVIDER: ${LITELLM_PROVIDER:-${LLM_PROVIDER:-openai}}
+      LITELLM_MODEL: ${LITELLM_MODEL:-${LLM_MODEL:-gpt-4o-mini}}
     depends_on:
       - mcp
     expose:

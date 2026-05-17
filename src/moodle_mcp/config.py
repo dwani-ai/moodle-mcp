@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import AnyHttpUrl, Field, SecretStr
+from pydantic import AliasChoices, AnyHttpUrl, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,10 +20,22 @@ class Settings(BaseSettings):
     mcp_server_url: AnyHttpUrl | None = None
     mcp_client_transport: str = "streamable-http"
 
-    llm_base_url: AnyHttpUrl = Field(default="https://api.openai.com/v1")
-    llm_api_key: SecretStr | None = None
-    llm_provider: str = "openai"
-    llm_model: str = "gpt-4o-mini"
+    llm_base_url: AnyHttpUrl = Field(
+        default="https://api.openai.com/v1",
+        validation_alias=AliasChoices("LITELLM_BASE_URL", "LLM_BASE_URL"),
+    )
+    llm_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("LITELLM_API_KEY", "LLM_API_KEY"),
+    )
+    llm_provider: str = Field(
+        default="openai",
+        validation_alias=AliasChoices("LITELLM_PROVIDER", "LLM_PROVIDER"),
+    )
+    llm_model: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("LITELLM_MODEL", "LLM_MODEL"),
+    )
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -38,7 +50,7 @@ class Settings(BaseSettings):
     @property
     def llm_api_key_value(self) -> str:
         if not self.llm_api_key or not self.llm_api_key.get_secret_value():
-            raise ValueError("LLM_API_KEY is required for agent responses.")
+            raise ValueError("LITELLM_API_KEY or LLM_API_KEY is required for agent responses.")
         return self.llm_api_key.get_secret_value()
 
     @property

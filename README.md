@@ -14,7 +14,7 @@ The first version supports two Moodle-backed user flows:
 - The ADK/API agents and chat UI can run on a separate VM from `services/agents/docker-compose.yml`.
 - The root `docker-compose.yml` remains a local all-in-one developer stack with the same service boundaries.
 - The FastAPI app serves a simple web chat UI and calls an OpenAI-compatible LLM endpoint.
-- Google ADK agent construction uses LiteLLM, so `LLM_PROVIDER=openai` and `LLM_MODEL=gpt-4o-mini` become `openai/gpt-4o-mini`.
+- Google ADK agent construction uses LiteLLM settings from Compose, so `LITELLM_PROVIDER=openai` and `LITELLM_MODEL=gpt-4o-mini` become `openai/gpt-4o-mini`.
 - Google ADK also exposes an education orchestrator with specialist sub-agents and reusable education skills.
 - Set `AGENT_RUNTIME=adk` to make `/api/chat` call the ADK education orchestrator; set `AGENT_RUNTIME=legacy` to use the original direct OpenAI-compatible tool loop.
 - Moodle operations are implemented as narrow Python tool functions and exposed through the MCP server.
@@ -214,7 +214,7 @@ Use one checkout of this repo per VM, then run the compose file for that VM:
 1. Moodle VM: create `services/moodle/.env` from `services/moodle/.env.example`, then run `docker compose -f services/moodle/docker-compose.yml up -d --build`.
 2. Complete Moodle setup and create the Web Services token from `deploy/moodle/SETUP.md`.
 3. MCP VM: create `services/mcp/.env` from `services/mcp/.env.example`, set `MOODLE_BASE_URL` to the Moodle VM URL and `MOODLE_TOKEN` to the Web Services token, then run `docker compose -f services/mcp/docker-compose.yml up -d --build`.
-4. Agents VM: create `services/agents/.env` from `services/agents/.env.example`, set `MCP_SERVER_URL` to the MCP VM endpoint, set LLM credentials and `LLM_PROVIDER`, then run `docker compose -f services/agents/docker-compose.yml up -d --build`.
+4. Agents VM: create `services/agents/.env` from `services/agents/.env.example`, set `MCP_SERVER_URL` to the MCP VM endpoint, set `LITELLM_API_KEY`, `LITELLM_PROVIDER`, `LITELLM_MODEL`, and `LITELLM_BASE_URL`, then run `docker compose -f services/agents/docker-compose.yml up -d --build`.
 5. Configure backups for PostgreSQL and Moodle data volumes on the Moodle VM.
 
 Only ports 80 and 443 should be exposed publicly on each VM. Database, Moodle container ports, agents ports, and raw MCP ports should remain on the Docker network or private VM network.
