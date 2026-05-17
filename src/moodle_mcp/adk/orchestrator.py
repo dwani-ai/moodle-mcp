@@ -6,8 +6,8 @@ from moodle_mcp.adk.agents import (
     EDUCATION_AGENT_SPECS,
     build_education_sub_agents,
     build_litellm_model,
-    build_moodle_mcp_toolset,
 )
+from moodle_mcp.adk.moodle_tools import ADK_MOODLE_TOOLS
 from moodle_mcp.adk.skills import EDUCATION_SKILLS
 
 if TYPE_CHECKING:
@@ -36,11 +36,12 @@ def build_education_orchestrator(settings: Settings | None = None) -> Any:
     from moodle_mcp.config import get_settings
 
     resolved_settings = settings or get_settings()
+    resolved_settings.validate_runtime()
     return Agent(
         name="education_orchestrator",
         model=build_litellm_model(resolved_settings),
         description="Routes Moodle education requests to specialist ADK agents and skills.",
         instruction=_orchestrator_instruction(),
-        tools=[toolset] if (toolset := build_moodle_mcp_toolset(resolved_settings)) else [],
+        tools=list(ADK_MOODLE_TOOLS.values()),
         sub_agents=build_education_sub_agents(resolved_settings),
     )

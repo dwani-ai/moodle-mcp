@@ -9,14 +9,20 @@ from moodle_mcp.mcp_client import mcp_client_session, serialize_mcp_result
 from moodle_mcp.moodle import MoodleClient
 from moodle_mcp.tools import (
     AddUrlResourceInput,
+    AddPageResourceInput,
+    CompletionStatusInput,
     CourseContentsInput,
     CreateCourseInput,
     ToolContext,
     UserRole,
+    UserLookupInput,
     moodle_add_url_resource,
+    moodle_add_page_resource,
     moodle_create_course,
+    moodle_get_activities_completion_status,
     moodle_get_course_contents,
     moodle_get_current_user,
+    moodle_get_users_by_field,
     moodle_list_course_categories,
     moodle_list_my_courses,
 )
@@ -86,6 +92,25 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "moodle_add_page_resource",
+            "description": "Add a page resource to a Moodle course section. Only creators may use it.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "courseid": {"type": "integer"},
+                    "section": {"type": "integer"},
+                    "name": {"type": "string"},
+                    "content": {"type": "string"},
+                    "intro": {"type": "string"},
+                },
+                "required": ["courseid", "section", "name", "content"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "moodle_list_my_courses",
             "description": "List the Moodle courses available to the current user.",
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -100,6 +125,40 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "type": "object",
                 "properties": {"courseid": {"type": "integer"}},
                 "required": ["courseid"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "moodle_get_activities_completion_status",
+            "description": "Get activity completion status for a Moodle course and user.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "courseid": {"type": "integer"},
+                    "userid": {"type": "integer"},
+                },
+                "required": ["courseid"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "moodle_get_users_by_field",
+            "description": (
+                "Look up Moodle users by id, username, or email. Only creator users may use it."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "field": {"type": "string", "enum": ["id", "username", "email"]},
+                    "values": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                },
+                "required": ["field", "values"],
                 "additionalProperties": False,
             },
         },
@@ -228,10 +287,20 @@ class MoodleAgent:
             return await moodle_create_course(moodle, context, CreateCourseInput(**arguments))
         if name == "moodle_add_url_resource":
             return await moodle_add_url_resource(moodle, context, AddUrlResourceInput(**arguments))
+        if name == "moodle_add_page_resource":
+            return await moodle_add_page_resource(moodle, context, AddPageResourceInput(**arguments))
         if name == "moodle_list_my_courses":
             return await moodle_list_my_courses(moodle, context)
         if name == "moodle_get_course_contents":
             return await moodle_get_course_contents(moodle, context, CourseContentsInput(**arguments))
+        if name == "moodle_get_activities_completion_status":
+            return await moodle_get_activities_completion_status(
+                moodle,
+                context,
+                CompletionStatusInput(**arguments),
+            )
+        if name == "moodle_get_users_by_field":
+            return await moodle_get_users_by_field(moodle, context, UserLookupInput(**arguments))
         raise ValueError(f"Unknown tool: {name}")
 
     def _system_prompt(self, role: UserRole) -> str:

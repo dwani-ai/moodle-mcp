@@ -7,14 +7,20 @@ from moodle_mcp.config import get_settings
 from moodle_mcp.moodle import MoodleClient
 from moodle_mcp.tools import (
     AddUrlResourceInput,
+    AddPageResourceInput,
+    CompletionStatusInput,
     CourseContentsInput,
     CreateCourseInput,
     ToolContext,
     UserRole,
+    UserLookupInput,
     moodle_add_url_resource,
+    moodle_add_page_resource,
     moodle_create_course,
+    moodle_get_activities_completion_status,
     moodle_get_course_contents,
     moodle_get_current_user,
+    moodle_get_users_by_field,
     moodle_list_course_categories,
     moodle_list_my_courses,
 )
@@ -95,6 +101,29 @@ def create_mcp_server(*, host: str = "127.0.0.1", port: int = 8000) -> FastMCP:
             )
 
     @mcp.tool()
+    async def add_page_resource(
+        courseid: int,
+        section: int,
+        name: str,
+        content: str,
+        intro: str = "",
+        role: str = "student",
+        user_id: int | None = None,
+    ) -> dict[str, Any]:
+        async with await _client() as client:
+            return await moodle_add_page_resource(
+                client,
+                _context(role, user_id),
+                AddPageResourceInput(
+                    courseid=courseid,
+                    section=section,
+                    name=name,
+                    content=content,
+                    intro=intro,
+                ),
+            )
+
+    @mcp.tool()
     async def list_my_courses(role: str = "student", user_id: int | None = None) -> list[dict[str, Any]]:
         async with await _client() as client:
             return await moodle_list_my_courses(client, _context(role, user_id))
@@ -110,6 +139,34 @@ def create_mcp_server(*, host: str = "127.0.0.1", port: int = 8000) -> FastMCP:
                 client,
                 _context(role, user_id),
                 CourseContentsInput(courseid=courseid),
+            )
+
+    @mcp.tool()
+    async def get_activities_completion_status(
+        courseid: int,
+        userid: int | None = None,
+        role: str = "student",
+        user_id: int | None = None,
+    ) -> dict[str, Any]:
+        async with await _client() as client:
+            return await moodle_get_activities_completion_status(
+                client,
+                _context(role, user_id),
+                CompletionStatusInput(courseid=courseid, userid=userid),
+            )
+
+    @mcp.tool()
+    async def get_users_by_field(
+        field: str,
+        values: list[str],
+        role: str = "student",
+        user_id: int | None = None,
+    ) -> list[dict[str, Any]]:
+        async with await _client() as client:
+            return await moodle_get_users_by_field(
+                client,
+                _context(role, user_id),
+                UserLookupInput(field=field, values=values),
             )
 
     return mcp

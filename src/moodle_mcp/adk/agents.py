@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from moodle_mcp.adk.moodle_tools import ADK_MOODLE_TOOLS
 from moodle_mcp.adk.skills import SKILLS_BY_NAME, skill_instruction
 
 if TYPE_CHECKING:
@@ -109,43 +110,9 @@ def _skill_supported_tools(skill_names: tuple[str, ...]) -> list[str]:
     )
 
 
-def build_moodle_mcp_toolset(
-    settings: "Settings",
-    *,
-    tool_filter: list[str] | None = None,
-) -> Any | None:
-    if not settings.mcp_server_url:
-        return None
-
-    try:
-        from google.adk.tools.mcp_tool import McpToolset
-        from google.adk.tools.mcp_tool.mcp_session_manager import (
-            SseConnectionParams,
-            StreamableHTTPConnectionParams,
-        )
-    except ImportError as exc:
-        raise RuntimeError("Install the optional ADK dependency with `pip install .[adk]`.") from exc
-
-    url = str(settings.mcp_server_url)
-    if settings.mcp_client_transport == "sse":
-        connection_params = SseConnectionParams(url=url)
-    elif settings.mcp_client_transport == "streamable-http":
-        connection_params = StreamableHTTPConnectionParams(url=url)
-    else:
-        raise ValueError("ADK MCP tools require MCP_CLIENT_TRANSPORT=sse or streamable-http.")
-
-    kwargs: dict[str, Any] = {"connection_params": connection_params}
-    if tool_filter:
-        kwargs["tool_filter"] = tool_filter
-    return McpToolset(**kwargs)
-
-
 def _tools_for_agent(settings: "Settings", skill_names: tuple[str, ...]) -> list[Any]:
-    toolset = build_moodle_mcp_toolset(
-        settings,
-        tool_filter=_skill_supported_tools(skill_names),
-    )
-    return [toolset] if toolset else []
+    settings.validate_runtime()
+    return [ADK_MOODLE_TOOLS[tool_name] for tool_name in _skill_supported_tools(skill_names)]
 
 
 def build_education_sub_agents(settings: "Settings | None" = None) -> list[Any]:

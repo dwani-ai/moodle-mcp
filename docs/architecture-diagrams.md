@@ -17,13 +17,13 @@ flowchart LR
   orchestrator --> adminEnrollment["admin_enrollment_agent"]
   orchestrator --> progressMonitor["progress_monitor_agent"]
   orchestrator --> contentCurator["content_curator_agent"]
-  orchestrator -->|"ADK McpToolset"| mcpProxy["MCP VM Caddy Proxy"]
-  courseCreator -->|"ADK McpToolset"| mcpProxy
-  assessmentBuilder -->|"ADK McpToolset"| mcpProxy
-  studentTutor -->|"ADK McpToolset"| mcpProxy
-  adminEnrollment -->|"ADK McpToolset"| mcpProxy
-  progressMonitor -->|"ADK McpToolset"| mcpProxy
-  contentCurator -->|"ADK McpToolset"| mcpProxy
+  orchestrator -->|"Bound ADK Moodle tools"| mcpProxy["MCP VM Caddy Proxy"]
+  courseCreator -->|"Bound ADK Moodle tools"| mcpProxy
+  assessmentBuilder -->|"Bound ADK Moodle tools"| mcpProxy
+  studentTutor -->|"Bound ADK Moodle tools"| mcpProxy
+  adminEnrollment -->|"Bound ADK Moodle tools"| mcpProxy
+  progressMonitor -->|"Bound ADK Moodle tools"| mcpProxy
+  contentCurator -->|"Bound ADK Moodle tools"| mcpProxy
   mcpProxy --> mcpServer["Moodle MCP Server"]
   mcpServer -->|"Moodle REST Web Services"| moodleProxy["Moodle VM Caddy Proxy"]
   moodleProxy --> moodleApp["Moodle PHP / Apache"]
@@ -43,7 +43,7 @@ sequenceDiagram
   participant Runner as Google ADK Runner
   participant Orchestrator as education_orchestrator
   participant Specialist as Specialist ADK Agent
-  participant Toolset as ADK McpToolset
+  participant Toolset as Bound ADK Moodle Tools
   participant MCP as Moodle MCP Server
   participant Moodle as Moodle Web Services
   participant DB as PostgreSQL

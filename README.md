@@ -18,7 +18,7 @@ The first version supports two Moodle-backed user flows:
 - Google ADK also exposes an education orchestrator with specialist sub-agents and reusable education skills.
 - Set `AGENT_RUNTIME=adk` to make `/api/chat` call the ADK education orchestrator; set `AGENT_RUNTIME=legacy` to use the original direct OpenAI-compatible tool loop.
 - Moodle operations are implemented as narrow Python tool functions and exposed through the MCP server.
-- Moodle users and roles remain the source of truth for permissions.
+- Moodle users and configured creator IDs determine effective app roles; production should keep `ALLOW_USER_ID_OVERRIDE=false`.
 
 ### System Diagram
 
@@ -35,13 +35,13 @@ flowchart LR
   orchestrator --> adminEnrollment["admin_enrollment_agent"]
   orchestrator --> progressMonitor["progress_monitor_agent"]
   orchestrator --> contentCurator["content_curator_agent"]
-  orchestrator -->|"ADK McpToolset"| mcpProxy["MCP VM Caddy Proxy"]
-  courseCreator -->|"ADK McpToolset"| mcpProxy
-  assessmentBuilder -->|"ADK McpToolset"| mcpProxy
-  studentTutor -->|"ADK McpToolset"| mcpProxy
-  adminEnrollment -->|"ADK McpToolset"| mcpProxy
-  progressMonitor -->|"ADK McpToolset"| mcpProxy
-  contentCurator -->|"ADK McpToolset"| mcpProxy
+  orchestrator -->|"Bound ADK Moodle tools"| mcpProxy["MCP VM Caddy Proxy"]
+  courseCreator -->|"Bound ADK Moodle tools"| mcpProxy
+  assessmentBuilder -->|"Bound ADK Moodle tools"| mcpProxy
+  studentTutor -->|"Bound ADK Moodle tools"| mcpProxy
+  adminEnrollment -->|"Bound ADK Moodle tools"| mcpProxy
+  progressMonitor -->|"Bound ADK Moodle tools"| mcpProxy
+  contentCurator -->|"Bound ADK Moodle tools"| mcpProxy
   mcpProxy --> mcpServer["Moodle MCP Server"]
   mcpServer -->|"Moodle REST Web Services"| moodleProxy["Moodle VM Caddy Proxy"]
   moodleProxy --> moodleApp["Moodle PHP / Apache"]
@@ -61,7 +61,7 @@ sequenceDiagram
   participant Runner as Google ADK Runner
   participant Orchestrator as education_orchestrator
   participant Specialist as Specialist ADK Agent
-  participant Toolset as ADK McpToolset
+  participant Toolset as Bound ADK Moodle Tools
   participant MCP as Moodle MCP Server
   participant Moodle as Moodle Web Services
   participant DB as PostgreSQL
@@ -163,7 +163,7 @@ moodle-mcp-server --transport streamable-http --host 0.0.0.0 --port 8000
 
 ## Google ADK Education Skills
 
-`build_google_adk_agent()` returns an education orchestrator backed by LiteLLM. When `AGENT_RUNTIME=adk`, the FastAPI `/api/chat` endpoint runs that orchestrator through a Google ADK `Runner`. The orchestrator delegates to specialist ADK sub-agents and connects to Moodle through ADK `McpToolset` instances pointed at `MCP_SERVER_URL`.
+`build_google_adk_agent()` returns an education orchestrator backed by LiteLLM. When `AGENT_RUNTIME=adk`, the FastAPI `/api/chat` endpoint runs that orchestrator through a Google ADK `Runner`. The orchestrator delegates to specialist ADK sub-agents and connects to Moodle through bound ADK tools that call the MCP server at `MCP_SERVER_URL`. These tools inject the server-resolved Moodle role and user id into every MCP call.
 
 Call chain:
 
@@ -191,7 +191,7 @@ Education skills:
 - `content-curator-skill`: resource recommendations and URL resource creation.
 - `support-assistant-skill`: Moodle navigation, access troubleshooting, and setup support.
 
-The current implemented Moodle tool surface supports course shells, URL resources, categories, enrolled-course listing, and course contents. Skills that need quizzes, assignments, grades, completion, files, enrollment writes, cohorts, or reports are scaffolded with explicit future tool requirements.
+The current implemented Moodle tool surface supports course shells, URL resources, page resources, categories, user lookup, enrolled-course listing, course contents, and read-only activity completion status. Skills that need quizzes, assignments, grades, files, enrollment writes, cohorts, or reports are scaffolded with explicit future tool requirements.
 
 ## Required Moodle Web Services
 
@@ -201,8 +201,10 @@ The app expects Moodle REST Web Services to be enabled with these functions:
 - `core_course_get_categories`
 - `core_course_create_courses`
 - `core_course_get_contents`
+- `core_completion_get_activities_completion_status`
 - `core_enrol_get_users_courses`
 - `core_user_get_users_by_field`
+- `mod_page_add_instance`
 - `mod_url_add_instance`
 
 The exact Moodle role capabilities still need to be configured inside Moodle. Creator users should only receive the course/category permissions they actually need.
@@ -219,8 +221,10 @@ Use one checkout of this repo per VM, then run the compose file for that VM:
 
 Only ports 80 and 443 should be exposed publicly on each VM. Database, Moodle container ports, agents ports, and raw MCP ports should remain on the Docker network or private VM network.
 
+See [docs/production-readiness.md](docs/production-readiness.md) for the production identity, authorization, and runtime checklist.
+
 ## Current MVP Limits
 
-- Course creation and URL resources are implemented first.
+- Course creation, URL resources, page resources, user lookup, and completion reads are implemented first.
 - File upload and richer Moodle activity creation are intentionally left behind capability checks because Moodle Web Services support varies by installation.
-- The app accepts a role selector in the MVP UI. Production should derive creator/student permissions from Moodle capabilities instead of trusting the browser.
+- The app resolves effective role server-side from `MOODLE_CREATOR_USER_IDS`; production should keep `ALLOW_USER_ID_OVERRIDE=false` and replace this with Moodle capability checks when per-user auth is added.

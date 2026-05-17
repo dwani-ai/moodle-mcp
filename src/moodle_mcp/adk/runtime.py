@@ -64,6 +64,8 @@ class AdkChatRuntime:
         except ImportError as exc:
             raise RuntimeError("Install the optional ADK dependency with `pip install .[adk]`.") from exc
 
+        from moodle_mcp.adk.moodle_tools import MoodleToolContext, bind_moodle_tool_context
+
         session_user_id = str(user_id or "anonymous")
         session_id = f"{role.value}-{session_user_id}"
         content = types.Content(
@@ -81,22 +83,25 @@ class AdkChatRuntime:
         final_answer = ""
         event_summaries: list[dict[str, Any]] = []
         await self._ensure_session(user_id=session_user_id, session_id=session_id)
-        async for event in self.runner.run_async(
-            user_id=session_user_id,
-            session_id=session_id,
-            invocation_id=str(uuid4()),
-            new_message=content,
+        with bind_moodle_tool_context(
+            MoodleToolContext(settings=self.settings, role=role, user_id=user_id)
         ):
-            event_text = self._event_text(event)
-            event_summaries.append(
-                {
-                    "author": getattr(event, "author", None),
-                    "text": event_text,
-                    "final": self._is_final_response(event),
-                }
-            )
-            if event_text and (self._is_final_response(event) or not final_answer):
-                final_answer = event_text
+            async for event in self.runner.run_async(
+                user_id=session_user_id,
+                session_id=session_id,
+                invocation_id=str(uuid4()),
+                new_message=content,
+            ):
+                event_text = self._event_text(event)
+                event_summaries.append(
+                    {
+                        "author": getattr(event, "author", None),
+                        "text": event_text,
+                        "final": self._is_final_response(event),
+                    }
+                )
+                if event_text and (self._is_final_response(event) or not final_answer):
+                    final_answer = event_text
 
         return AdkChatResponse(
             answer=final_answer or "The ADK agent finished without a text response.",

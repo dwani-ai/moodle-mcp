@@ -9,12 +9,13 @@ from pydantic import BaseModel, Field
 
 from moodle_mcp.adk.runtime import AdkChatRuntime
 from moodle_mcp.agent import ChatResult, MoodleAgent
-from moodle_mcp.config import get_settings
+from moodle_mcp.config import Settings, get_settings
 from moodle_mcp.mcp_client import mcp_client_session
 from moodle_mcp.moodle import MoodleClient, MoodleError
 from moodle_mcp.tools import UserRole
 
 settings = get_settings()
+settings.validate_runtime()
 app = FastAPI(title="Moodle MCP Agent", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
@@ -41,6 +42,32 @@ class ChatRequest(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+
+async def resolve_chat_context(
+    app_settings: Settings,
+    requested_role: UserRole,
+    requested_user_id: int | None,
+) -> tuple[UserRole, int | None]:
+    async with MoodleClient(
+        base_url=str(app_settings.moodle_base_url),
+        token=app_settings.moodle_token_value,
+        rest_format=app_settings.moodle_rest_format,
+    ) as client:
+        current_user = await client.get_site_info()
+
+    effective_user_id = current_user.userid
+    if app_settings.allow_user_id_override and requested_user_id is not None:
+        effective_user_id = requested_user_id
+
+    effective_role = (
+        UserRole.CREATOR if effective_user_id in app_settings.creator_user_ids else UserRole.STUDENT
+    )
+
+    if app_settings.app_env == "local" and app_settings.allow_user_id_override:
+        effective_role = requested_role
+
+    return effective_role, effective_user_id
 
 
 @app.get("/", include_in_schema=False)
@@ -77,21 +104,26 @@ async def readyz() -> HealthResponse:
 @app.post("/api/chat")
 async def chat(request: ChatRequest) -> ChatResult:
     try:
+        effective_role, effective_user_id = await resolve_chat_context(
+            settings,
+            request.role,
+            request.user_id,
+        )
         if settings.agent_runtime == "adk":
             if adk_runtime is None:
                 raise RuntimeError("ADK runtime is not initialized.")
             result = await adk_runtime.chat(
-                role=request.role,
+                role=effective_role,
                 message=request.message,
-                user_id=request.user_id,
+                user_id=effective_user_id,
             )
-            return ChatResult(role=request.role, answer=result.answer, tool_results=result.events)
+            return ChatResult(role=effective_role, answer=result.answer, tool_results=result.events)
 
         agent = MoodleAgent(settings)
         return await agent.chat(
-            role=request.role,
+            role=effective_role,
             message=request.message,
-            user_id=request.user_id,
+            user_id=effective_user_id,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc

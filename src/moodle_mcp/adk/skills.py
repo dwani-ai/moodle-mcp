@@ -7,8 +7,11 @@ SUPPORTED_MOODLE_TOOLS = frozenset(
         "list_course_categories",
         "create_course",
         "add_url_resource",
+        "add_page_resource",
         "list_my_courses",
         "get_course_contents",
+        "get_activities_completion_status",
+        "get_users_by_field",
     }
 )
 
@@ -46,9 +49,10 @@ EDUCATION_SKILLS: tuple[EducationSkill, ...] = (
             "list_course_categories",
             "create_course",
             "add_url_resource",
+            "add_page_resource",
             "get_course_contents",
         ),
-        future_tools=("create_page", "create_section", "upload_file", "duplicate_course"),
+        future_tools=("create_section", "upload_file", "duplicate_course"),
         instructions=(
             "Start by finding the right category before proposing a course shell.",
             "Ask for missing fullname, shortname, category, visibility, and target audience.",
@@ -60,8 +64,13 @@ EDUCATION_SKILLS: tuple[EducationSkill, ...] = (
         name="lesson-planning-skill",
         title="Lesson Planning",
         purpose="Design lesson outlines, learning objectives, activities, and Moodle-ready plans.",
-        supported_tools=("get_course_contents", "add_url_resource", "list_course_categories"),
-        future_tools=("create_page", "create_assignment", "create_forum", "create_book"),
+        supported_tools=(
+            "get_course_contents",
+            "add_page_resource",
+            "add_url_resource",
+            "list_course_categories",
+        ),
+        future_tools=("create_assignment", "create_forum", "create_book"),
         instructions=(
             "Convert broad topics into objectives, prerequisites, activities, and checks for understanding.",
             "Use course contents to align new lesson plans with existing sections.",
@@ -86,8 +95,13 @@ EDUCATION_SKILLS: tuple[EducationSkill, ...] = (
         name="student-tutor-skill",
         title="Student Tutor",
         purpose="Help learners understand course content and choose next study steps.",
-        supported_tools=("list_my_courses", "get_course_contents", "get_current_user"),
-        future_tools=("get_grades", "get_completion_status", "get_feedback"),
+        supported_tools=(
+            "list_my_courses",
+            "get_course_contents",
+            "get_activities_completion_status",
+            "get_current_user",
+        ),
+        future_tools=("get_grades", "get_feedback"),
         instructions=(
             "Ground answers in enrolled courses and visible course contents when possible.",
             "Explain concepts at the learner's level and ask one clarifying question when context is thin.",
@@ -99,8 +113,8 @@ EDUCATION_SKILLS: tuple[EducationSkill, ...] = (
         name="admin-enrollment-skill",
         title="Admin Enrollment",
         purpose="Guide user lookup, enrollment, role, cohort, and access workflows.",
-        supported_tools=("get_current_user", "list_course_categories", "list_my_courses"),
-        future_tools=("get_users_by_field", "enrol_user", "unenrol_user", "assign_role", "manage_cohort"),
+        supported_tools=("get_current_user", "get_users_by_field", "list_course_categories", "list_my_courses"),
+        future_tools=("enrol_user", "unenrol_user", "assign_role", "manage_cohort"),
         instructions=(
             "Identify whether the request is informational, access troubleshooting, or an enrollment change.",
             "Explain required Moodle permissions and token capabilities before administrative changes.",
@@ -112,8 +126,8 @@ EDUCATION_SKILLS: tuple[EducationSkill, ...] = (
         name="progress-engagement-skill",
         title="Progress Engagement",
         purpose="Summarize learner engagement and identify possible support interventions.",
-        supported_tools=("list_my_courses", "get_course_contents"),
-        future_tools=("get_grades", "get_completion_status", "get_logs", "get_activity_report"),
+        supported_tools=("list_my_courses", "get_course_contents", "get_activities_completion_status"),
+        future_tools=("get_grades", "get_logs", "get_activity_report"),
         instructions=(
             "Use available course structure to frame what progress signals should be reviewed.",
             "Do not fabricate grades, completion status, or risk scores without reporting tools.",
@@ -125,8 +139,13 @@ EDUCATION_SKILLS: tuple[EducationSkill, ...] = (
         name="content-curator-skill",
         title="Content Curator",
         purpose="Recommend, organize, and add education resources to Moodle courses.",
-        supported_tools=("get_course_contents", "add_url_resource", "list_course_categories"),
-        future_tools=("upload_file", "create_page", "create_folder", "tag_resource"),
+        supported_tools=(
+            "get_course_contents",
+            "add_page_resource",
+            "add_url_resource",
+            "list_course_categories",
+        ),
+        future_tools=("upload_file", "create_folder", "tag_resource"),
         instructions=(
             "Ask for learner level, topic, resource type, license constraints, and course section.",
             "Prefer concise resource descriptions that explain why the item supports the objective.",
@@ -138,8 +157,8 @@ EDUCATION_SKILLS: tuple[EducationSkill, ...] = (
         name="support-assistant-skill",
         title="Support Assistant",
         purpose="Help teachers and students navigate Moodle and resolve common setup issues.",
-        supported_tools=("get_current_user", "list_my_courses", "get_course_contents"),
-        future_tools=("get_users_by_field", "reset_password", "inspect_capabilities", "get_site_config"),
+        supported_tools=("get_current_user", "get_users_by_field", "list_my_courses", "get_course_contents"),
+        future_tools=("reset_password", "inspect_capabilities", "get_site_config"),
         instructions=(
             "Diagnose whether the issue is login, enrollment, visibility, content, or Web Services setup.",
             "Use current user and course visibility data before recommending admin action.",
