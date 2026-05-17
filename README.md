@@ -1,5 +1,7 @@
 # Moodle MCP Agent
 
+![Moodle MCP Agent social hero](docs/assets/moodle-mcp-social-hero.png)
+
 This project installs Moodle and runs separate MCP and ADK/API agent services that work with Moodle through Moodle Web Services.
 
 The first version supports two Moodle-backed user flows:
