@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     moodle_base_url: AnyHttpUrl = Field(default="http://localhost")
     moodle_token: SecretStr | None = None
     moodle_rest_format: str = "json"
+    mcp_server_url: AnyHttpUrl | None = None
+    mcp_client_transport: str = "streamable-http"
 
     llm_base_url: AnyHttpUrl = Field(default="https://api.openai.com/v1")
     llm_api_key: SecretStr | None = None

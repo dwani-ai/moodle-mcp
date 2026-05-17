@@ -1,0 +1,50 @@
+services:
+  agents:
+    image: moodle-adk-agents:local
+    build:
+      context: ../..
+      dockerfile: services/agents/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?Set APP_SECRET_KEY}
+      APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-https://app.example.com}
+      MCP_SERVER_URL: ${MCP_SERVER_URL:-}
+      MCP_CLIENT_TRANSPORT: ${MCP_CLIENT_TRANSPORT:-streamable-http}
+      MOODLE_BASE_URL: ${MOODLE_BASE_URL:-https://moodle.example.com}
+      MOODLE_TOKEN: ${MOODLE_TOKEN:-}
+      MOODLE_REST_FORMAT: ${MOODLE_REST_FORMAT:-json}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:?Set LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - agents
+    environment:
+      APP_SITE_ADDRESS: ${APP_SITE_ADDRESS:-http://app.localhost}
+      APP_HOSTNAME: ${APP_HOSTNAME:-app.localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

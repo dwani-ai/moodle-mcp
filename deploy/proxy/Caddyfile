@@ -3,13 +3,17 @@
 }
 
 http://{$APP_HOSTNAME} {
-	reverse_proxy app:8000
+	reverse_proxy agents:8000
 }
 
 http://{$MOODLE_HOSTNAME} {
 	reverse_proxy moodle:80
 }
 
+http://{$MCP_HOSTNAME} {
+	reverse_proxy mcp:8000
+}
+
 http://localhost {
-	reverse_proxy app:8000
+	reverse_proxy agents:8000
 }

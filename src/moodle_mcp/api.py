@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from moodle_mcp.agent import ChatResult, MoodleAgent
 from moodle_mcp.config import get_settings
+from moodle_mcp.mcp_client import mcp_client_session
 from moodle_mcp.moodle import MoodleClient, MoodleError
 from moodle_mcp.tools import UserRole
 
@@ -52,13 +53,20 @@ async def healthz() -> HealthResponse:
 @app.get("/readyz")
 async def readyz() -> HealthResponse:
     try:
-        async with MoodleClient(
-            base_url=str(settings.moodle_base_url),
-            token=settings.moodle_token_value,
-            rest_format=settings.moodle_rest_format,
-        ) as client:
-            await client.get_site_info()
-    except (MoodleError, ValueError) as exc:
+        if settings.mcp_server_url:
+            async with mcp_client_session(
+                str(settings.mcp_server_url),
+                settings.mcp_client_transport,
+            ) as session:
+                await session.call_tool("get_current_user", {"role": "student"})
+        else:
+            async with MoodleClient(
+                base_url=str(settings.moodle_base_url),
+                token=settings.moodle_token_value,
+                rest_format=settings.moodle_rest_format,
+            ) as client:
+                await client.get_site_info()
+    except (MoodleError, RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return HealthResponse(status="ready")
 

@@ -5,6 +5,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from moodle_mcp.config import Settings, get_settings
+from moodle_mcp.mcp_client import mcp_client_session, serialize_mcp_result
 from moodle_mcp.moodle import MoodleClient
 from moodle_mcp.tools import (
     AddUrlResourceInput,
@@ -164,6 +165,9 @@ class MoodleAgent:
         tool_calls: list[Any],
         context: ToolContext,
     ) -> list[dict[str, Any]]:
+        if self.settings.mcp_server_url:
+            return await self._run_mcp_tool_calls(tool_calls, context)
+
         results: list[dict[str, Any]] = []
         async with MoodleClient(
             base_url=str(self.settings.moodle_base_url),
@@ -178,6 +182,36 @@ class MoodleAgent:
                     {"tool_call_id": call.id, "tool_name": name, "arguments": arguments, "result": result}
                 )
         return results
+
+    async def _run_mcp_tool_calls(
+        self,
+        tool_calls: list[Any],
+        context: ToolContext,
+    ) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        async with mcp_client_session(
+            str(self.settings.mcp_server_url),
+            self.settings.mcp_client_transport,
+        ) as session:
+            for call in tool_calls:
+                name = call.function.name
+                arguments = json.loads(call.function.arguments or "{}")
+                arguments["role"] = context.role.value
+                if context.user_id is not None:
+                    arguments["user_id"] = context.user_id
+                mcp_result = await session.call_tool(self._mcp_tool_name(name), arguments)
+                results.append(
+                    {
+                        "tool_call_id": call.id,
+                        "tool_name": name,
+                        "arguments": arguments,
+                        "result": serialize_mcp_result(mcp_result),
+                    }
+                )
+        return results
+
+    def _mcp_tool_name(self, openai_tool_name: str) -> str:
+        return openai_tool_name.removeprefix("moodle_")
 
     async def _dispatch_tool(
         self,

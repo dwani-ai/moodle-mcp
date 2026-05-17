@@ -1,0 +1,11 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_SITE_ADDRESS} {
+	reverse_proxy agents:8000
+}
+
+http://localhost {
+	reverse_proxy agents:8000
+}

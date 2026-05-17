@@ -1,0 +1,45 @@
+services:
+  mcp:
+    image: moodle-mcp-server:local
+    build:
+      context: ../..
+      dockerfile: services/mcp/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MOODLE_BASE_URL: ${MOODLE_BASE_URL:?Set MOODLE_BASE_URL}
+      MOODLE_TOKEN: ${MOODLE_TOKEN:?Set MOODLE_TOKEN}
+      MOODLE_REST_FORMAT: ${MOODLE_REST_FORMAT:-json}
+    command:
+      - moodle-mcp-server
+      - --transport
+      - ${MCP_TRANSPORT:-streamable-http}
+      - --host
+      - ${MCP_HOST:-0.0.0.0}
+      - --port
+      - "${MCP_PORT:-8000}"
+    expose:
+      - "8000"
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - mcp
+    environment:
+      MCP_SITE_ADDRESS: ${MCP_SITE_ADDRESS:-http://mcp.localhost}
+      MCP_HOSTNAME: ${MCP_HOSTNAME:-mcp.localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:
