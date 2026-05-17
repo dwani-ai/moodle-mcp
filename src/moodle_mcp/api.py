@@ -10,8 +10,7 @@ from pydantic import BaseModel, Field
 from moodle_mcp.adk.runtime import AdkChatRuntime
 from moodle_mcp.agent import ChatResult, MoodleAgent
 from moodle_mcp.config import Settings, get_settings
-from moodle_mcp.mcp_client import mcp_client_session
-from moodle_mcp.moodle import MoodleClient, MoodleError
+from moodle_mcp.mcp_client import mcp_client_session, serialize_mcp_result
 from moodle_mcp.tools import UserRole
 
 settings = get_settings()
@@ -49,14 +48,17 @@ async def resolve_chat_context(
     requested_role: UserRole,
     requested_user_id: int | None,
 ) -> tuple[UserRole, int | None]:
-    async with MoodleClient(
-        base_url=str(app_settings.moodle_base_url),
-        token=app_settings.moodle_token_value,
-        rest_format=app_settings.moodle_rest_format,
-    ) as client:
-        current_user = await client.get_site_info()
+    if not app_settings.mcp_server_url:
+        raise RuntimeError("MCP_SERVER_URL is required for chat context resolution.")
 
-    effective_user_id = current_user.userid
+    async with mcp_client_session(
+        str(app_settings.mcp_server_url),
+        app_settings.mcp_client_transport,
+    ) as session:
+        result = await session.call_tool("get_current_user", {"role": "student"})
+
+    current_user = extract_mcp_mapping(serialize_mcp_result(result))
+    effective_user_id = int(current_user["userid"])
     if app_settings.allow_user_id_override and requested_user_id is not None:
         effective_user_id = requested_user_id
 
@@ -68,6 +70,28 @@ async def resolve_chat_context(
         effective_role = requested_role
 
     return effective_role, effective_user_id
+
+
+def extract_mcp_mapping(result: object) -> dict[str, object]:
+    if isinstance(result, dict):
+        if "userid" in result:
+            return result
+        structured = result.get("structuredContent")
+        if isinstance(structured, dict):
+            return structured
+        content = result.get("content")
+        if isinstance(content, list) and content:
+            first = content[0]
+            if isinstance(first, dict):
+                if isinstance(first.get("text"), str):
+                    import json
+
+                    decoded = json.loads(first["text"])
+                    if isinstance(decoded, dict):
+                        return decoded
+                if isinstance(first.get("data"), dict):
+                    return first["data"]
+    raise RuntimeError("MCP tool did not return a user mapping.")
 
 
 @app.get("/", include_in_schema=False)
@@ -83,20 +107,12 @@ async def healthz() -> HealthResponse:
 @app.get("/readyz")
 async def readyz() -> HealthResponse:
     try:
-        if settings.mcp_server_url:
-            async with mcp_client_session(
-                str(settings.mcp_server_url),
-                settings.mcp_client_transport,
-            ) as session:
-                await session.call_tool("get_current_user", {"role": "student"})
-        else:
-            async with MoodleClient(
-                base_url=str(settings.moodle_base_url),
-                token=settings.moodle_token_value,
-                rest_format=settings.moodle_rest_format,
-            ) as client:
-                await client.get_site_info()
-    except (MoodleError, RuntimeError, ValueError) as exc:
+        async with mcp_client_session(
+            str(settings.mcp_server_url),
+            settings.mcp_client_transport,
+        ) as session:
+            await session.call_tool("get_current_user", {"role": "student"})
+    except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return HealthResponse(status="ready")
 
@@ -127,5 +143,5 @@ async def chat(request: ChatRequest) -> ChatResult:
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except (MoodleError, RuntimeError, ValueError) as exc:
+    except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

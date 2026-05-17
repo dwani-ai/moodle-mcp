@@ -8,6 +8,7 @@ This project is production-oriented once these controls are enabled in deploymen
 - Configure `MOODLE_CREATOR_USER_IDS` with the Moodle user ids allowed to use creator tools.
 - The API resolves the effective Moodle user from `core_webservice_get_site_info` unless overrides are explicitly enabled.
 - ADK Moodle tools inject the resolved role and user id into every MCP call; the model does not choose those arguments.
+- The agents/API service never calls Moodle REST directly. All Moodle access from ADK or the legacy LLM runtime goes through MCP.
 
 ## Required Environment
 

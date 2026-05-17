@@ -16,7 +16,7 @@ The first version supports two Moodle-backed user flows:
 - The FastAPI app serves a simple web chat UI and calls an OpenAI-compatible LLM endpoint.
 - Google ADK agent construction uses LiteLLM settings from Compose, so `LITELLM_PROVIDER=openai` and `LITELLM_MODEL=gpt-4o-mini` become `openai/gpt-4o-mini`.
 - Google ADK also exposes an education orchestrator with specialist sub-agents and reusable education skills.
-- Set `AGENT_RUNTIME=adk` to make `/api/chat` call the ADK education orchestrator; set `AGENT_RUNTIME=legacy` to use the original direct OpenAI-compatible tool loop.
+- Set `AGENT_RUNTIME=adk` to make `/api/chat` call the ADK education orchestrator; set `AGENT_RUNTIME=legacy` to use the original OpenAI-compatible tool loop. Both runtimes call Moodle only through MCP.
 - Moodle operations are implemented as narrow Python tool functions and exposed through the MCP server.
 - Moodle users and configured creator IDs determine effective app roles; production should keep `ALLOW_USER_ID_OVERRIDE=false`.
 

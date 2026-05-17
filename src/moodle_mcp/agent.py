@@ -6,26 +6,7 @@ from pydantic import BaseModel
 
 from moodle_mcp.config import Settings, get_settings
 from moodle_mcp.mcp_client import mcp_client_session, serialize_mcp_result
-from moodle_mcp.moodle import MoodleClient
-from moodle_mcp.tools import (
-    AddUrlResourceInput,
-    AddPageResourceInput,
-    CompletionStatusInput,
-    CourseContentsInput,
-    CreateCourseInput,
-    ToolContext,
-    UserRole,
-    UserLookupInput,
-    moodle_add_url_resource,
-    moodle_add_page_resource,
-    moodle_create_course,
-    moodle_get_activities_completion_status,
-    moodle_get_course_contents,
-    moodle_get_current_user,
-    moodle_get_users_by_field,
-    moodle_list_course_categories,
-    moodle_list_my_courses,
-)
+from moodle_mcp.tools import ToolContext, UserRole
 
 
 class ChatResult(BaseModel):
@@ -224,23 +205,9 @@ class MoodleAgent:
         tool_calls: list[Any],
         context: ToolContext,
     ) -> list[dict[str, Any]]:
-        if self.settings.mcp_server_url:
-            return await self._run_mcp_tool_calls(tool_calls, context)
-
-        results: list[dict[str, Any]] = []
-        async with MoodleClient(
-            base_url=str(self.settings.moodle_base_url),
-            token=self.settings.moodle_token_value,
-            rest_format=self.settings.moodle_rest_format,
-        ) as moodle:
-            for call in tool_calls:
-                name = call.function.name
-                arguments = json.loads(call.function.arguments or "{}")
-                result = await self._dispatch_tool(moodle, context, name, arguments)
-                results.append(
-                    {"tool_call_id": call.id, "tool_name": name, "arguments": arguments, "result": result}
-                )
-        return results
+        if not self.settings.mcp_server_url:
+            raise RuntimeError("MCP_SERVER_URL is required for Moodle tool calls.")
+        return await self._run_mcp_tool_calls(tool_calls, context)
 
     async def _run_mcp_tool_calls(
         self,
@@ -271,37 +238,6 @@ class MoodleAgent:
 
     def _mcp_tool_name(self, openai_tool_name: str) -> str:
         return openai_tool_name.removeprefix("moodle_")
-
-    async def _dispatch_tool(
-        self,
-        moodle: MoodleClient,
-        context: ToolContext,
-        name: str,
-        arguments: dict[str, Any],
-    ) -> Any:
-        if name == "moodle_get_current_user":
-            return await moodle_get_current_user(moodle, context)
-        if name == "moodle_list_course_categories":
-            return await moodle_list_course_categories(moodle, context)
-        if name == "moodle_create_course":
-            return await moodle_create_course(moodle, context, CreateCourseInput(**arguments))
-        if name == "moodle_add_url_resource":
-            return await moodle_add_url_resource(moodle, context, AddUrlResourceInput(**arguments))
-        if name == "moodle_add_page_resource":
-            return await moodle_add_page_resource(moodle, context, AddPageResourceInput(**arguments))
-        if name == "moodle_list_my_courses":
-            return await moodle_list_my_courses(moodle, context)
-        if name == "moodle_get_course_contents":
-            return await moodle_get_course_contents(moodle, context, CourseContentsInput(**arguments))
-        if name == "moodle_get_activities_completion_status":
-            return await moodle_get_activities_completion_status(
-                moodle,
-                context,
-                CompletionStatusInput(**arguments),
-            )
-        if name == "moodle_get_users_by_field":
-            return await moodle_get_users_by_field(moodle, context, UserLookupInput(**arguments))
-        raise ValueError(f"Unknown tool: {name}")
 
     def _system_prompt(self, role: UserRole) -> str:
         shared = (

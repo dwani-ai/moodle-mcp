@@ -71,8 +71,8 @@ class Settings(BaseSettings):
         return f"{self.llm_provider}/{self.llm_model}"
 
     def validate_runtime(self) -> None:
-        if self.agent_runtime == "adk" and not self.mcp_server_url:
-            raise ValueError("MCP_SERVER_URL is required when AGENT_RUNTIME=adk.")
+        if self.agent_runtime in {"adk", "legacy"} and not self.mcp_server_url:
+            raise ValueError("MCP_SERVER_URL is required for agent Moodle access.")
 
 
 @lru_cache
