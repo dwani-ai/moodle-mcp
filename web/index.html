@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Moodle MCP Agent</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <p class="eyebrow">Moodle MCP</p>
+        <h1>Course Assistant</h1>
+        <p class="lede">
+          Chat as a creator to build courses, or as a student to discover and consume Moodle content.
+        </p>
+
+        <label>
+          Role
+          <select id="role">
+            <option value="student">Student</option>
+            <option value="creator">Creator</option>
+          </select>
+        </label>
+
+        <label>
+          Moodle user id (optional)
+          <input id="userId" inputmode="numeric" placeholder="Defaults to token user" />
+        </label>
+      </section>
+
+      <section class="chat">
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <form id="chatForm" class="composer">
+          <textarea
+            id="message"
+            rows="3"
+            placeholder="Ask to list my courses, create a course, or add a URL resource..."
+            required
+          ></textarea>
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/static/main.js"></script>
+  </body>
+</html>

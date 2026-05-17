@@ -1,0 +1,122 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MOODLE_DB_NAME:-moodle}
+      POSTGRES_USER: ${MOODLE_DB_USER:-moodle}
+      POSTGRES_PASSWORD: ${MOODLE_DB_PASSWORD:?Set MOODLE_DB_PASSWORD}
+    volumes:
+      - moodle-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MOODLE_DB_USER:-moodle} -d ${MOODLE_DB_NAME:-moodle}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  moodle:
+    image: moodle-mcp-moodle:local
+    build:
+      context: .
+      dockerfile: deploy/moodle/Dockerfile
+      args:
+        MOODLE_DOWNLOAD_URL: ${MOODLE_DOWNLOAD_URL:-https://packaging.moodle.org/stable405/moodle-4.5.4.tgz}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MOODLE_DATABASE_TYPE: pgsql
+      MOODLE_DATABASE_HOST: postgres
+      MOODLE_DATABASE_PORT_NUMBER: 5432
+      MOODLE_DATABASE_NAME: ${MOODLE_DB_NAME:-moodle}
+      MOODLE_DATABASE_USER: ${MOODLE_DB_USER:-moodle}
+      MOODLE_DATABASE_PASSWORD: ${MOODLE_DB_PASSWORD:?Set MOODLE_DB_PASSWORD}
+      MOODLE_SITE_NAME: ${MOODLE_SITE_NAME:-Moodle MCP}
+      MOODLE_PUBLIC_HOST: ${MOODLE_PUBLIC_HOST:-moodle.localhost}
+      MOODLE_PUBLIC_SCHEME: ${MOODLE_PUBLIC_SCHEME:-http}
+      MOODLE_SSLPROXY: ${MOODLE_SSLPROXY:-no}
+    volumes:
+      - moodledata:/var/moodledata
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/login/index.php >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+
+  moodle-cron:
+    image: moodle-mcp-moodle:local
+    build:
+      context: .
+      dockerfile: deploy/moodle/Dockerfile
+      args:
+        MOODLE_DOWNLOAD_URL: ${MOODLE_DOWNLOAD_URL:-https://packaging.moodle.org/stable405/moodle-4.5.4.tgz}
+    restart: unless-stopped
+    depends_on:
+      moodle:
+        condition: service_healthy
+    environment:
+      MOODLE_DATABASE_TYPE: pgsql
+      MOODLE_DATABASE_HOST: postgres
+      MOODLE_DATABASE_PORT_NUMBER: 5432
+      MOODLE_DATABASE_NAME: ${MOODLE_DB_NAME:-moodle}
+      MOODLE_DATABASE_USER: ${MOODLE_DB_USER:-moodle}
+      MOODLE_DATABASE_PASSWORD: ${MOODLE_DB_PASSWORD:?Set MOODLE_DB_PASSWORD}
+      MOODLE_PUBLIC_HOST: ${MOODLE_PUBLIC_HOST:-moodle.localhost}
+      MOODLE_PUBLIC_SCHEME: ${MOODLE_PUBLIC_SCHEME:-http}
+      MOODLE_SSLPROXY: ${MOODLE_SSLPROXY:-no}
+    volumes:
+      - moodledata:/var/moodledata
+    command: >
+      sh -c 'while true; do
+        php /var/www/html/admin/cli/cron.php || true;
+        sleep 60;
+      done'
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MOODLE_BASE_URL: ${MOODLE_BASE_URL:-http://moodle}
+    depends_on:
+      moodle:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+      - moodle
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      APP_HOSTNAME: ${APP_HOSTNAME:-app.localhost}
+      MOODLE_HOSTNAME: ${MOODLE_HOSTNAME:-moodle.localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  moodle-db:
+  moodledata:
+  caddy-data:
+  caddy-config:

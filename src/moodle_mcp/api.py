@@ -1,0 +1,78 @@
+import os
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+from moodle_mcp.agent import ChatResult, MoodleAgent
+from moodle_mcp.config import get_settings
+from moodle_mcp.moodle import MoodleClient, MoodleError
+from moodle_mcp.tools import UserRole
+
+settings = get_settings()
+app = FastAPI(title="Moodle MCP Agent", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+WEB_DIR = Path(os.getenv("WEB_DIR", Path(__file__).resolve().parents[2] / "web"))
+if not WEB_DIR.exists() and Path("/app/web").exists():
+    WEB_DIR = Path("/app/web")
+if WEB_DIR.exists():
+    app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1)
+    role: UserRole
+    user_id: int | None = None
+
+
+class HealthResponse(BaseModel):
+    status: str
+
+
+@app.get("/", include_in_schema=False)
+async def index() -> FileResponse:
+    return FileResponse(WEB_DIR / "index.html")
+
+
+@app.get("/healthz")
+async def healthz() -> HealthResponse:
+    return HealthResponse(status="ok")
+
+
+@app.get("/readyz")
+async def readyz() -> HealthResponse:
+    try:
+        async with MoodleClient(
+            base_url=str(settings.moodle_base_url),
+            token=settings.moodle_token_value,
+            rest_format=settings.moodle_rest_format,
+        ) as client:
+            await client.get_site_info()
+    except (MoodleError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return HealthResponse(status="ready")
+
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest) -> ChatResult:
+    try:
+        agent = MoodleAgent(settings)
+        return await agent.chat(
+            role=request.role,
+            message=request.message,
+            user_id=request.user_id,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except (MoodleError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
