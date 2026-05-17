@@ -14,6 +14,9 @@ The first version supports two Moodle-backed user flows:
 - The ADK/API agents and chat UI can run on a separate VM from `services/agents/docker-compose.yml`.
 - The root `docker-compose.yml` remains a local all-in-one developer stack with the same service boundaries.
 - The FastAPI app serves a simple web chat UI and calls an OpenAI-compatible LLM endpoint.
+- Google ADK agent construction uses LiteLLM, so `LLM_PROVIDER=openai` and `LLM_MODEL=gpt-4o-mini` become `openai/gpt-4o-mini`.
+- Google ADK also exposes an education orchestrator with specialist sub-agents and reusable education skills.
+- Set `AGENT_RUNTIME=adk` to make `/api/chat` call the ADK education orchestrator; set `AGENT_RUNTIME=legacy` to use the original direct OpenAI-compatible tool loop.
 - Moodle operations are implemented as narrow Python tool functions and exposed through the MCP server.
 - Moodle users and roles remain the source of truth for permissions.
 
@@ -90,6 +93,38 @@ Run a network MCP server locally:
 moodle-mcp-server --transport streamable-http --host 0.0.0.0 --port 8000
 ```
 
+## Google ADK Education Skills
+
+`build_google_adk_agent()` returns an education orchestrator backed by LiteLLM. When `AGENT_RUNTIME=adk`, the FastAPI `/api/chat` endpoint runs that orchestrator through a Google ADK `Runner`. The orchestrator delegates to specialist ADK sub-agents and connects to Moodle through ADK `McpToolset` instances pointed at `MCP_SERVER_URL`.
+
+Call chain:
+
+```text
+Browser UI -> /api/chat -> AdkChatRuntime -> education_orchestrator -> specialist sub-agent -> Moodle MCP server -> Moodle Web Services
+```
+
+Specialist ADK agents:
+
+- `course_creator_agent`: plans and creates course shells, lessons, and starter resources.
+- `assessment_builder_agent`: drafts quizzes, rubrics, assignments, and assessment plans.
+- `student_tutor_agent`: helps learners understand visible Moodle course content.
+- `admin_enrollment_agent`: guides enrollment, access, role, and cohort workflows.
+- `progress_monitor_agent`: reviews engagement signals and recommends support interventions.
+- `content_curator_agent`: recommends and places learning resources.
+
+Education skills:
+
+- `course-creation-skill`: category discovery, course shell creation, section planning, URL resources.
+- `lesson-planning-skill`: objectives, lesson outlines, activities, and Moodle-ready plans.
+- `assessment-builder-skill`: quiz, question bank, rubric, and assignment drafts.
+- `student-tutor-skill`: learner explanations, course summaries, and next study steps.
+- `admin-enrollment-skill`: user access, enrollment, role, and cohort guidance.
+- `progress-engagement-skill`: engagement review and at-risk learner support planning.
+- `content-curator-skill`: resource recommendations and URL resource creation.
+- `support-assistant-skill`: Moodle navigation, access troubleshooting, and setup support.
+
+The current implemented Moodle tool surface supports course shells, URL resources, categories, enrolled-course listing, and course contents. Skills that need quizzes, assignments, grades, completion, files, enrollment writes, cohorts, or reports are scaffolded with explicit future tool requirements.
+
 ## Required Moodle Web Services
 
 The app expects Moodle REST Web Services to be enabled with these functions:
@@ -111,7 +146,7 @@ Use one checkout of this repo per VM, then run the compose file for that VM:
 1. Moodle VM: create `services/moodle/.env` from `services/moodle/.env.example`, then run `docker compose -f services/moodle/docker-compose.yml up -d --build`.
 2. Complete Moodle setup and create the Web Services token from `deploy/moodle/SETUP.md`.
 3. MCP VM: create `services/mcp/.env` from `services/mcp/.env.example`, set `MOODLE_BASE_URL` to the Moodle VM URL and `MOODLE_TOKEN` to the Web Services token, then run `docker compose -f services/mcp/docker-compose.yml up -d --build`.
-4. Agents VM: create `services/agents/.env` from `services/agents/.env.example`, set `MCP_SERVER_URL` to the MCP VM endpoint, set LLM credentials, then run `docker compose -f services/agents/docker-compose.yml up -d --build`.
+4. Agents VM: create `services/agents/.env` from `services/agents/.env.example`, set `MCP_SERVER_URL` to the MCP VM endpoint, set LLM credentials and `LLM_PROVIDER`, then run `docker compose -f services/agents/docker-compose.yml up -d --build`.
 5. Configure backups for PostgreSQL and Moodle data volumes on the Moodle VM.
 
 Only ports 80 and 443 should be exposed publicly on each VM. Database, Moodle container ports, agents ports, and raw MCP ports should remain on the Docker network or private VM network.

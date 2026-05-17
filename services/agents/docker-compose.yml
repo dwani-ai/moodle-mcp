@@ -10,6 +10,7 @@ services:
         required: false
     environment:
       APP_ENV: ${APP_ENV:-production}
+      AGENT_RUNTIME: ${AGENT_RUNTIME:-adk}
       APP_SECRET_KEY: ${APP_SECRET_KEY:?Set APP_SECRET_KEY}
       APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-https://app.example.com}
       MCP_SERVER_URL: ${MCP_SERVER_URL:-}
@@ -19,6 +20,7 @@ services:
       MOODLE_REST_FORMAT: ${MOODLE_REST_FORMAT:-json}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
       LLM_API_KEY: ${LLM_API_KEY:?Set LLM_API_KEY}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
     expose:
       - "8000"

@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from moodle_mcp.adk.runtime import AdkChatRuntime
 from moodle_mcp.agent import ChatResult, MoodleAgent
 from moodle_mcp.config import get_settings
 from moodle_mcp.mcp_client import mcp_client_session
@@ -28,6 +29,8 @@ if not WEB_DIR.exists() and Path("/app/web").exists():
     WEB_DIR = Path("/app/web")
 if WEB_DIR.exists():
     app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+
+adk_runtime = AdkChatRuntime(settings) if settings.agent_runtime == "adk" else None
 
 
 class ChatRequest(BaseModel):
@@ -74,6 +77,16 @@ async def readyz() -> HealthResponse:
 @app.post("/api/chat")
 async def chat(request: ChatRequest) -> ChatResult:
     try:
+        if settings.agent_runtime == "adk":
+            if adk_runtime is None:
+                raise RuntimeError("ADK runtime is not initialized.")
+            result = await adk_runtime.chat(
+                role=request.role,
+                message=request.message,
+                user_id=request.user_id,
+            )
+            return ChatResult(role=request.role, answer=result.answer, tool_results=result.events)
+
         agent = MoodleAgent(settings)
         return await agent.chat(
             role=request.role,
@@ -82,5 +95,5 @@ async def chat(request: ChatRequest) -> ChatResult:
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except (MoodleError, ValueError) as exc:
+    except (MoodleError, RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

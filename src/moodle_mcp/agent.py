@@ -251,18 +251,8 @@ class MoodleAgent:
 
 
 def build_google_adk_agent() -> Any:
-    """Create a Google ADK Agent when the optional ADK package is installed."""
+    """Create the Google ADK education orchestrator backed by LiteLLM."""
 
-    try:
-        from google.adk.agents import Agent
-    except ImportError as exc:
-        raise RuntimeError("Install the optional ADK dependency with `pip install .[adk]`.") from exc
+    from moodle_mcp.adk import build_education_orchestrator
 
-    return Agent(
-        name="moodle_agent",
-        model=get_settings().llm_model,
-        instruction=(
-            "You are a Moodle agent with creator and student flows. Use the configured MCP "
-            "Moodle tools for all Moodle state and content operations."
-        ),
-    )
+    return build_education_orchestrator(get_settings())

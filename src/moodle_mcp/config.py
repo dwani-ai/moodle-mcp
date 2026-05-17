@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     app_env: str = "local"
     app_secret_key: SecretStr = Field(default=SecretStr("dev-secret-change-me"))
     app_allowed_origins: str = "http://localhost,http://app.localhost"
+    agent_runtime: str = "legacy"
 
     moodle_base_url: AnyHttpUrl = Field(default="http://localhost")
     moodle_token: SecretStr | None = None
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
 
     llm_base_url: AnyHttpUrl = Field(default="https://api.openai.com/v1")
     llm_api_key: SecretStr | None = None
+    llm_provider: str = "openai"
     llm_model: str = "gpt-4o-mini"
 
     @property
@@ -38,6 +40,12 @@ class Settings(BaseSettings):
         if not self.llm_api_key or not self.llm_api_key.get_secret_value():
             raise ValueError("LLM_API_KEY is required for agent responses.")
         return self.llm_api_key.get_secret_value()
+
+    @property
+    def litellm_model(self) -> str:
+        if "/" in self.llm_model:
+            return self.llm_model
+        return f"{self.llm_provider}/{self.llm_model}"
 
 
 @lru_cache

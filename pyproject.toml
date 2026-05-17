@@ -28,6 +28,7 @@ dev = [
 ]
 adk = [
   "google-adk>=0.1",
+  "litellm>=1.0",
 ]
 
 [project.scripts]
